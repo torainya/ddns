@@ -183,33 +183,4 @@ cat <<EOF
 EOF
 
 
-echo ""
-echo "=================================="
-echo " Xray Server Info "
-echo "=================================="
-
-echo "PrivateKey:"
-echo "$PRIVATE_KEY"
-
-echo ""
-
-echo "UUID:"
-echo "$UUID"
-
-echo ""
-
-echo "PublicKey:"
-echo "$PUBLIC_KEY"
-
-echo ""
-
-echo "ShortID:"
-echo "$SHORT_ID"
-
-echo ""
-
-echo "SNI:"
-echo "$SNI"
-
-
 
