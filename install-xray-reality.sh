@@ -184,20 +184,20 @@ echo "=================================="
 
 
 cat > $CLASH_FILE <<EOF
-- name: "Reality-$SERVER_IP"
-  type: vless
-  server: $SERVER_IP
-  port: $PORT_OUT
-  uuid: $UUID
-  network: tcp
-  udp: true
-  tls: true
-  flow: xtls-rprx-vision
-  servername: $SNI
-  reality-opts:
-    public-key: $PUBLIC_KEY
-    short-id: $SHORT_ID
-  client-fingerprint: chrome
+  - name: "Reality-$SERVER_IP"
+    type: vless
+    server: $SERVER_IP
+    port: $PORT_OUT
+    uuid: $UUID
+    network: tcp
+    udp: true
+    tls: true
+    flow: xtls-rprx-vision
+    servername: $SNI
+    reality-opts:
+      public-key: $PUBLIC_KEY
+      short-id: $SHORT_ID
+    client-fingerprint: chrome
 EOF
 
 
