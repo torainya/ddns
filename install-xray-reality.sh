@@ -37,8 +37,29 @@ if [ ! -f /usr/local/bin/xray ]; then
 
 cd /tmp
 
+ARCH=$(uname -m)
+
+case $ARCH in
+    x86_64)
+        XRAY_FILE="Xray-linux-64.zip"
+        ;;
+    aarch64)
+        XRAY_FILE="Xray-linux-arm64-v8a.zip"
+        ;;
+    armv7l)
+        XRAY_FILE="Xray-linux-arm32-v7a.zip"
+        ;;
+    *)
+        echo "Unsupported architecture: $ARCH"
+        exit 1
+        ;;
+esac
+
+echo "Detected architecture: $ARCH"
+echo "Downloading: $XRAY_FILE"
+
 curl -L \
-https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip \
+https://github.com/XTLS/Xray-core/releases/latest/download/$XRAY_FILE \
 -o xray.zip
 
 
