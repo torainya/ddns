@@ -1,9 +1,3 @@
-apt update -y
-apt install -y curl unzip openssl ca-certificates
-wget -O install-xray-reality.sh https://raw.githubusercontent.com/torainya/xray-reality-install-clash-yaml/main/install-xray-reality.sh
-chmod +x install-xray-reality.sh
-nohup bash install-xray-reality.sh > install.log 2>&1 &
-
 #!/bin/bash
 
 set -e
