@@ -1,3 +1,9 @@
+apt update -y
+apt install -y curl unzip openssl ca-certificates
+wget -O install-xray-reality.sh https://raw.githubusercontent.com/torainya/xray-reality-install-clash-yaml/main/install-xray-reality.sh
+chmod +x install-xray-reality.sh
+nohup bash install-xray-reality.sh > install.log 2>&1 &
+
 #!/bin/bash
 
 set -e
@@ -174,34 +180,38 @@ systemctl enable xray
 systemctl restart xray
 
 
+
+ echo "[7/7] Create Clash YAML Node "
+
 echo ""
 echo "=================================="
-echo " Clash YAML Node "
+echo "生成 Clash YAML 节点"
 echo "=================================="
 
-cat <<EOF
 
+cat > $CLASH_FILE <<EOF
 - name: "Reality-$SERVER_IP"
   type: vless
   server: $SERVER_IP
   port: $PORT_OUT
   uuid: $UUID
-
   network: tcp
   udp: true
-
   tls: true
   flow: xtls-rprx-vision
-
   servername: $SNI
-
   reality-opts:
     public-key: $PUBLIC_KEY
     short-id: $SHORT_ID
-
   client-fingerprint: chrome
-
 EOF
 
 
+cat $CLASH_FILE
 
+
+echo ""
+echo "=================================="
+echo "节点已保存:"
+echo "$CLASH_FILE"
+echo "=================================="
