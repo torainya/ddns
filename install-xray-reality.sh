@@ -114,11 +114,15 @@ echo "[3/7] Generate Reality key"
 
 KEY=$(/usr/local/bin/xray x25519)
 
-
 PRIVATE_KEY=$(echo "$KEY" | grep "Private key" | awk '{print $3}')
 
-PUBLIC_KEY=$(echo "$KEY" | grep "Password" | awk '{print $3}')
+PUBLIC_KEY=$(echo "$KEY" | grep "Password" | awk '{print $2}')
 
+if [ -z "$PRIVATE_KEY" ] || [ -z "$PUBLIC_KEY" ]; then
+    echo "Reality key generate failed"
+    echo "$KEY"
+    exit 1
+fi
 
 
 if [ -z "$PRIVATE_KEY" ]; then
