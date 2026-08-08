@@ -4,6 +4,7 @@
 set -e
 
 
+
 BASE_DIR="/root/ddns"
 
 CONFIG="$BASE_DIR/config"
@@ -13,10 +14,9 @@ WORKER_URL="https://ddns.torainya.com"
 
 
 
-if [ ! -f "$CONFIG" ]
-then
+if [ ! -f "$CONFIG" ]; then
 
-echo "配置不存在"
+echo "Config missing"
 
 exit 1
 
@@ -24,33 +24,57 @@ fi
 
 
 
-source $CONFIG
+source "$CONFIG"
 
 
 
 echo "=============================="
+
 echo "DDNS Sync"
+
 echo "=============================="
+
+
+
+echo "Domain:"
+echo "$DOMAIN"
+
+
+
+################################
+# 获取IPv4
+################################
 
 
 IPV4=$(curl -4 -s https://api.ipify.org || true)
+
+
+
+################################
+# 获取IPv6
+################################
 
 
 IPV6=$(curl -6 -s https://api64.ipify.org || true)
 
 
 
-echo "Domain:"
-echo $DOMAIN
-
+echo ""
 
 echo "IPv4:"
-echo $IPV4
+echo "$IPV4"
 
+
+echo ""
 
 echo "IPv6:"
-echo $IPV6
+echo "$IPV6"
 
+
+
+################################
+# 构造JSON
+################################
 
 
 JSON=$(cat <<EOF
@@ -64,6 +88,11 @@ EOF
 
 
 
+################################
+# 请求Worker
+################################
+
+
 RESULT=$(curl -s \
 -X POST "$WORKER_URL" \
 -H "Content-Type: application/json" \
@@ -73,9 +102,14 @@ RESULT=$(curl -s \
 
 
 
-echo $RESULT
+echo ""
+
+echo "Result:"
+
+echo "$RESULT"
 
 
-echo "=============================="
+
+echo ""
+
 echo "完成"
-echo "=============================="
