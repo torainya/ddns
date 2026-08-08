@@ -1,3 +1,6 @@
+前置脚本
+bash <(wget -qO- -o- https://github.com/233boy/Xray/raw/main/install.sh)
+
 初始化脚本
 bash <(curl -fsSL https://raw.githubusercontent.com/torainya/ddns/main/install.sh)
 
