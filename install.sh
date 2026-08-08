@@ -3,20 +3,18 @@
 set -e
 
 
-#####################################
-# Cloudflare DDNS Installer
-#####################################
-
-
 export DEBIAN_FRONTEND=noninteractive
-export NEEDRESTART_MODE=a
 
 
 BASE_DIR="/root/ddns"
 
 CLIENT_FILE="$BASE_DIR/ddns-client.sh"
 
+LOOP_FILE="$BASE_DIR/ddns-loop.sh"
+
 CONFIG_FILE="$BASE_DIR/config"
+
+SERVICE_FILE="/etc/systemd/system/ddns.service"
 
 
 CLIENT_URL="https://raw.githubusercontent.com/torainya/xray/main/ddns-client.sh"
@@ -31,23 +29,24 @@ mkdir -p "$BASE_DIR"
 
 
 
-#####################################
+#######################################
 # 下载客户端
-#####################################
+#######################################
 
-echo "[1/5] Download DDNS client"
+echo "[1/5] Download client"
 
 
-curl -fsSL "$CLIENT_URL" -o "$CLIENT_FILE"
+curl -fsSL "$CLIENT_URL" \
+-o "$CLIENT_FILE"
 
 
 chmod +x "$CLIENT_FILE"
 
 
 
-#####################################
+#######################################
 # 首次配置
-#####################################
+#######################################
 
 if [ ! -f "$CONFIG_FILE" ]; then
 
@@ -57,10 +56,10 @@ echo "首次配置"
 echo ""
 
 
-read -p "请输入域名 (例如 vn.torainya.com): " DOMAIN
+read -p "请输入域名(例如 vn.torainya.com): " DOMAIN
 
 
-read -p "请输入 GLOBE_KEY: " GLOBE_KEY
+read -p "请输入GLOBE_KEY: " GLOBE_KEY
 
 
 
@@ -78,160 +77,155 @@ echo "配置保存完成"
 
 else
 
-
-echo "检测到已有配置"
+echo "检测到已有配置，跳过输入"
 
 
 fi
 
 
 
-#####################################
-# 安装 cron
-#####################################
+#######################################
+# 创建循环任务
+#######################################
+
+echo "[2/5] Create loop service"
 
 
-echo "[2/5] Check cron"
+cat > "$LOOP_FILE" <<'EOF'
+#!/bin/bash
 
 
-if ! command -v crontab >/dev/null 2>&1
-then
+CLIENT="/root/ddns/ddns-client.sh"
+
+LOG="/root/ddns/ddns.log"
 
 
-echo "未检测到 crontab，开始安装"
+while true
+do
 
 
+echo "================================" >> "$LOG"
 
-if command -v apt-get >/dev/null 2>&1
-then
-
-
-echo "Debian/Ubuntu detected"
-
-
-apt-get update -y
-
-
-apt-get install -y \
---no-install-recommends \
-cron
+echo "$(date) DDNS START" >> "$LOG"
 
 
 
-elif command -v yum >/dev/null 2>&1
-then
+if [ -f "$CLIENT" ]; then
 
 
-echo "CentOS detected"
-
-
-yum install -y cronie
-
-
-
-elif command -v apk >/dev/null 2>&1
-then
-
-
-echo "Alpine detected"
-
-
-apk add --no-cache dcron
-
+    bash "$CLIENT" >> "$LOG" 2>&1
 
 
 else
 
 
-echo "不支持的系统"
-
-exit 1
-
-
-fi
-
-
-fi
-
-
-
-#####################################
-# 启动 cron
-#####################################
-
-
-echo "[3/5] Start cron"
-
-
-
-if command -v systemctl >/dev/null 2>&1
-then
-
-systemctl enable cron 2>/dev/null || \
-systemctl enable crond 2>/dev/null || true
-
-
-systemctl start cron 2>/dev/null || \
-systemctl start crond 2>/dev/null || true
-
-
-
-elif command -v service >/dev/null 2>&1
-then
-
-
-service cron start 2>/dev/null || true
+    echo "client missing" >> "$LOG"
 
 
 fi
 
 
 
-
-#####################################
-# 添加定时任务
-#####################################
+echo "$(date) sleep 3 hours" >> "$LOG"
 
 
-echo "[4/5] Setup cron"
+sleep 10800
 
 
+done
 
-CRON_JOB="0 */3 * * * $CLIENT_FILE >/dev/null 2>&1"
+EOF
 
 
-
-(
-crontab -l 2>/dev/null | grep -v "$CLIENT_FILE" || true
-
-echo "$CRON_JOB"
-
-) | crontab -
+chmod +x "$LOOP_FILE"
 
 
 
-echo "已添加:"
-echo "$CRON_JOB"
+#######################################
+# 创建systemd
+#######################################
+
+echo "[3/5] Create systemd service"
 
 
 
-#####################################
-# 第一次同步
-#####################################
+cat > "$SERVICE_FILE" <<EOF
+
+[Unit]
+Description=Cloudflare DDNS Client
+
+After=network-online.target
+
+Wants=network-online.target
 
 
-echo "[5/5] First sync"
+
+[Service]
+
+Type=simple
+
+ExecStart=$LOOP_FILE
+
+Restart=always
+
+RestartSec=10
 
 
 
-bash "$CLIENT_FILE"
+[Install]
+
+WantedBy=multi-user.target
+
+EOF
+
+
+
+
+#######################################
+# 启动
+#######################################
+
+echo "[4/5] Enable service"
+
+
+
+systemctl daemon-reload
+
+
+systemctl enable ddns.service
+
+
+systemctl restart ddns.service
+
+
+
+#######################################
+# 完成
+#######################################
+
+echo "[5/5] Finished"
 
 
 
 echo ""
+
 echo "======================================"
+
 echo " DDNS安装完成"
-echo " 每3小时自动同步"
-echo " 配置文件:"
+
+echo ""
+
+echo "配置文件:"
 echo "$CONFIG_FILE"
+
+echo ""
+
+echo "日志:"
+echo "/root/ddns/ddns.log"
+
+echo ""
+
+echo "查看状态:"
+echo "systemctl status ddns"
+
 echo "======================================"
