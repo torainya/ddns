@@ -1,5 +1,5 @@
 初始化脚本
-bash <(curl -fsSL https://raw.githubusercontent.com/torainya/xray/main/install.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/torainya/ddns/main/install.sh)
 
 请输入域名:
 xxx.torainya.com
