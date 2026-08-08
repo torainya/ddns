@@ -3,143 +3,199 @@
 set -e
 
 echo "=================================="
-echo " Xray Reality + Clash Auto Deploy "
+echo " Xray Reality + Clash Deploy"
 echo "=================================="
 
 
-# ===== 用户参数 =====
+# ========= 参数 =========
 
-PORT_IN=${PORT_IN:-443}
-PORT_OUT=${PORT_OUT:-44645}
+PORT=${PORT:-443}
 
 SNI="www.cloudflare.com"
 
-SERVER_IP=$(curl -s ipv4.icanhazip.com || echo "YOUR_SERVER_IP")
+XRAY_VERSION="v25.12.8"
+
+XRAY_DIR="/usr/local/etc/xray"
+
+CLASH_FILE="/root/clash-node.yaml"
 
 
 UUID=$(cat /proc/sys/kernel/random/uuid)
 
 
-XRAY_DIR="/usr/local/etc/xray"
-CLASH_FILE="/root/clash-node.yaml"
+get_ip(){
+
+curl -4 -s https://ipv4.icanhazip.com \
+|| curl -4 -s https://api.ipify.org \
+|| echo "YOUR_IP"
+
+}
+
+
+SERVER_IP=$(get_ip)
+
 
 
 echo "[1/7] Install dependency"
 
+
 apt update -y
-apt install -y curl unzip openssl ca-certificates
+
+apt install -y \
+curl \
+unzip \
+openssl \
+ca-certificates
 
 
 echo "[2/7] Install Xray"
 
 
-if [ ! -f /usr/local/bin/xray ]; then
+ARCH=$(uname -m)
+
+
+case $ARCH in
+
+x86_64)
+XRAY_FILE="Xray-linux-64.zip"
+;;
+
+aarch64)
+XRAY_FILE="Xray-linux-arm64-v8a.zip"
+;;
+
+armv7l)
+XRAY_FILE="Xray-linux-arm32-v7a.zip"
+;;
+
+*)
+echo "Unsupported architecture"
+exit 1
+;;
+
+esac
+
+
+
+echo "Architecture: $ARCH"
+
+
 
 cd /tmp
 
-ARCH=$(uname -m)
 
-case $ARCH in
-    x86_64)
-        XRAY_FILE="Xray-linux-64.zip"
-        ;;
-    aarch64)
-        XRAY_FILE="Xray-linux-arm64-v8a.zip"
-        ;;
-    armv7l)
-        XRAY_FILE="Xray-linux-arm32-v7a.zip"
-        ;;
-    *)
-        echo "Unsupported architecture: $ARCH"
-        exit 1
-        ;;
-esac
+rm -rf xray.zip xray geoip.dat geosite.dat
 
-echo "Detected architecture: $ARCH"
-echo "Downloading: $XRAY_FILE"
 
-curl -L \
-https://github.com/XTLS/Xray-core/releases/latest/download/$XRAY_FILE \
--o xray.zip
+
+wget -q \
+"https://github.com/XTLS/Xray-core/releases/download/${XRAY_VERSION}/${XRAY_FILE}" \
+-O xray.zip
+
 
 
 unzip -o xray.zip
 
+
+
 install -m 755 xray /usr/local/bin/xray
 
-fi
+
+
+echo "Xray version:"
+
+/usr/local/bin/xray version
 
 
 
 echo "[3/7] Generate Reality key"
 
 
-KEY=$(xray x25519)
 
-PRIVATE_KEY=$(echo "$KEY" | grep PrivateKey | awk '{print $2}')
+KEY=$(/usr/local/bin/xray x25519)
 
-PUBLIC_KEY=$(echo "$KEY" | grep Password | awk '{print $3}')
+
+PRIVATE_KEY=$(echo "$KEY" | grep "Private key" | awk '{print $3}')
+
+PUBLIC_KEY=$(echo "$KEY" | grep "Password" | awk '{print $3}')
+
+
+
+if [ -z "$PRIVATE_KEY" ]; then
+
+echo "Reality key generate failed"
+
+exit 1
+
+fi
+
+
 
 SHORT_ID=$(openssl rand -hex 8)
 
 
 
-echo "[4/7] Create Xray config"
+echo "[4/7] Create config"
+
 
 
 mkdir -p $XRAY_DIR
 
 
+
 cat > $XRAY_DIR/config.json <<EOF
+
 {
 "log":{
- "loglevel":"none"
+"loglevel":"none"
 },
 
 "inbounds":[
 {
- "port":$PORT_IN,
- "protocol":"vless",
+"port":$PORT,
+"protocol":"vless",
 
- "settings":{
-  "clients":[
-   {
-    "id":"$UUID",
-    "flow":"xtls-rprx-vision"
-   }
-  ],
-  "decryption":"none"
- },
+"settings":{
+"clients":[
+{
+"id":"$UUID",
+"flow":"xtls-rprx-vision"
+}
+],
+"decryption":"none"
+},
 
- "streamSettings":{
-  "network":"tcp",
-  "security":"reality",
+"streamSettings":{
+"network":"tcp",
+"security":"reality",
 
-  "realitySettings":{
-   "show":false,
-   "dest":"$SNI:443",
-   "xver":0,
+"realitySettings":{
+"show":false,
+"dest":"$SNI:443",
+"xver":0,
 
-   "serverNames":[
-    "$SNI"
-   ],
+"serverNames":[
+"$SNI"
+],
 
-   "privateKey":"$PRIVATE_KEY",
+"privateKey":"$PRIVATE_KEY",
 
-   "shortIds":[
-    "$SHORT_ID"
-   ]
-  }
- }
+"shortIds":[
+"$SHORT_ID"
+]
+}
+}
 }
 ],
 
 "outbounds":[
 {
- "protocol":"freedom"
+"protocol":"freedom"
 }
 ]
+
 }
+
 EOF
 
 
@@ -147,24 +203,35 @@ EOF
 echo "[5/7] Create systemd"
 
 
+
 cat >/etc/systemd/system/xray.service <<EOF
+
 [Unit]
 Description=Xray Reality
 After=network.target
 
+
 [Service]
+
 Type=simple
-ExecStart=/usr/local/bin/xray run -config /usr/local/etc/xray/config.json
+
+ExecStart=/usr/local/bin/xray run -config $XRAY_DIR/config.json
+
 Restart=always
+
 RestartSec=5
 
+
 [Install]
+
 WantedBy=multi-user.target
+
 EOF
 
 
 
 echo "[6/7] Start Xray"
+
 
 
 systemctl daemon-reload
@@ -175,37 +242,62 @@ systemctl restart xray
 
 
 
- echo "[7/7] Create Clash YAML Node "
+sleep 2
 
-echo ""
-echo "=================================="
-echo "生成 Clash YAML 节点"
-echo "=================================="
+
+
+systemctl status xray --no-pager
+
+
+
+echo "[7/7] Generate Clash"
+
 
 
 cat > $CLASH_FILE <<EOF
-  - name: "Reality-$SERVER_IP"
-    type: vless
-    server: $SERVER_IP
-    port: $PORT_OUT
-    uuid: $UUID
-    network: tcp
-    udp: true
-    tls: true
-    flow: xtls-rprx-vision
-    servername: $SNI
-    reality-opts:
-      public-key: $PUBLIC_KEY
-      short-id: $SHORT_ID
-    client-fingerprint: chrome
+
+- name: "Reality-$SERVER_IP"
+
+  type: vless
+
+  server: $SERVER_IP
+
+  port: $PORT
+
+  uuid: $UUID
+
+  network: tcp
+
+  udp: true
+
+  tls: true
+
+  flow: xtls-rprx-vision
+
+  servername: $SNI
+
+  reality-opts:
+
+    public-key: $PUBLIC_KEY
+
+    short-id: $SHORT_ID
+
+  client-fingerprint: chrome
+
 EOF
+
 
 
 cat $CLASH_FILE
 
 
+
 echo ""
+
 echo "=================================="
-echo "节点已保存:"
-echo "$CLASH_FILE"
+
+echo "Done"
+
+echo "Saved: $CLASH_FILE"
+
 echo "=================================="
