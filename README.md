@@ -1,3 +1,6 @@
+3X-UI脚本
+bash <(curl -Ls https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh)
+
 前置脚本
 bash <(wget -qO- -o- https://github.com/233boy/Xray/raw/main/install.sh)
 
