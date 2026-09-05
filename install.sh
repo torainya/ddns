@@ -17,7 +17,7 @@ CONFIG_FILE="$BASE_DIR/config"
 SERVICE_FILE="/etc/systemd/system/ddns.service"
 
 
-CLIENT_URL="https://raw.githubusercontent.com/torainya/xray/main/ddns-client.sh"
+CLIENT_URL="https://raw.githubusercontent.com/torainya/ddns/main/ddns-client.sh"
 
 
 echo "======================================"
